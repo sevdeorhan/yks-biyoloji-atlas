@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
+import 'modes/drag_drop_screen.dart';
 
 class QuizShell extends StatelessWidget {
   final String topicId;
@@ -10,6 +11,12 @@ class QuizShell extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Her quiz modu kendi ekranına yönlendirir.
+    // Diğer modlar (explore_learn, pinpoint vb.) kendi geliştirici tarafından eklenecek.
+    if (mode == 'drag_drop') {
+      return DragDropScreen(topicId: topicId);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(_modeTitle(mode)),
