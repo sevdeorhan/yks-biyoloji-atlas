@@ -1,14 +1,105 @@
+import 'dart:io' show Platform;
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show SystemNavigator;
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
-import 'package:flutter/services.dart' show SystemNavigator;
+import 'package:shared_preferences/shared_preferences.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_spacing.dart';
 import '../../../core/constants/app_strings.dart';
+import '../../../main.dart'; // For sharedPreferencesProvider
 import '../../providers/theme_provider.dart';
+
+// --- Notification Logic ---
+
+final notificationServiceProvider = Provider((ref) => NotificationService());
+
+final notificationProvider = StateNotifierProvider<NotificationNotifier, bool>((ref) {
+  final prefs = ref.watch(sharedPreferencesProvider);
+  final notifService = ref.watch(notificationServiceProvider);
+  return NotificationNotifier(prefs, notifService);
+});
+
+class NotificationService {
+  final FlutterLocalNotificationsPlugin _notificationsPlugin =
+      FlutterLocalNotificationsPlugin();
+
+  Future<void> init() async {
+    const androidInitializationSettings =
+        AndroidInitializationSettings('@mipmap/ic_launcher');
+    const iosInitializationSettings = DarwinInitializationSettings(
+      requestAlertPermission: true,
+      requestBadgePermission: true,
+      requestSoundPermission: true,
+    );
+    const initializationSettings = InitializationSettings(
+      android: androidInitializationSettings,
+      iOS: iosInitializationSettings,
+    );
+    await _notificationsPlugin.initialize(settings: initializationSettings);
+  }
+
+  Future<void> enableStreakReminder() async {
+    const androidDetails = AndroidNotificationDetails(
+      'streak_reminders',
+      'Çalışma Hatırlatıcıları',
+      channelDescription: 'Günlük çalışma serisini hatırlatan bildirimler',
+      importance: Importance.max,
+      priority: Priority.high,
+    );
+    const iosDetails = DarwinNotificationDetails();
+    const platformDetails = NotificationDetails(
+      android: androidDetails,
+      iOS: iosDetails,
+    );
+
+    await _notificationsPlugin.cancelAll();
+    
+    await _notificationsPlugin.periodicallyShow(
+      id: 0,
+      title: 'Zaman Geldi! 🧬',
+      body: 'Serini bozma, Biyoloji Atlası seni bekliyor!',
+      repeatInterval: RepeatInterval.daily,
+      notificationDetails: platformDetails,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+    );
+  }
+
+  Future<void> disableAllReminders() async {
+    await _notificationsPlugin.cancelAll();
+  }
+}
+
+class NotificationNotifier extends StateNotifier<bool> {
+  final SharedPreferences _prefs;
+  final NotificationService _notificationService;
+  static const _key = 'notifications_enabled';
+
+  NotificationNotifier(this._prefs, this._notificationService)
+      : super(_prefs.getBool(_key) ?? false) {
+    if (state) {
+      _notificationService.enableStreakReminder();
+    }
+  }
+
+  Future<void> toggleNotifications() async {
+    final newState = !state;
+    state = newState;
+    await _prefs.setBool(_key, newState);
+
+    if (newState) {
+      await _notificationService.enableStreakReminder();
+    } else {
+      await _notificationService.disableAllReminders();
+    }
+  }
+}
+
+// --- Settings Screen ---
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -17,6 +108,7 @@ class SettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final themeMode = ref.watch(themeModeProvider);
     final isDarkMode = themeMode == ThemeMode.dark;
+    final notificationsEnabled = ref.watch(notificationProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text(AppStrings.settings)),
@@ -33,9 +125,11 @@ class SettingsScreen extends ConsumerWidget {
           _SettingsTile(
             icon: Icons.notifications_outlined,
             title: AppStrings.notifications,
-            onTap: () {
-              // Notifikasyonlar ekranı mevcut değilse burayı pasif bırakıyoruz
-            },
+            trailing: Switch(
+              value: notificationsEnabled,
+              onChanged: (_) => ref.read(notificationProvider.notifier).toggleNotifications(),
+            ),
+            onTap: () => ref.read(notificationProvider.notifier).toggleNotifications(),
           ),
           const _SectionHeader(title: AppStrings.app),
           _SettingsTile(
