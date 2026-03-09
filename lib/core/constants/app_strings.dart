@@ -17,6 +17,17 @@ class AppStrings {
   static const progress = 'İlerleme';
   static const settings = 'Ayarlar';
 
+  // Settings
+  static const account = 'Hesap';
+  static const profile = 'Profil';
+  static const notifications = 'Bildirimler';
+  static const app = 'Uygulama';
+  static const darkMode = 'Karanlık Mod';
+  static const about = 'Hakkında';
+  static const aboutApp = 'Uygulama Hakkında';
+  static const privacyPolicy = 'Gizlilik Politikası';
+  static const logout = 'Çıkış Yap';
+
   // Quiz modes
   static const exploreLearn = 'Keşfet ve Öğren';
   static const pinpoint = 'Nokta Atışı';
